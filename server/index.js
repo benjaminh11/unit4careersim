@@ -169,6 +169,64 @@ app.delete(
 );
 
 //create a comment on a review
+app.post(
+  "/api/books/:bookId/reviews/:reviewId/comments",
+  authenticateToken,
+  async (req, res, next) => {
+    const { reviewId } = req.params;
+    const { comment_text } = req.body;
+    try {
+      const comment = await createComment({
+        user_id: req.user.id,
+        review_id: reviewId,
+        comment_text,
+      });
+      res.status(201).json(comment);
+    } catch (err) {
+      res.status(400).send("unable to create comment");
+    }
+  }
+);
+
+//get all comments for a user
+app.get("/api/comments/me", authenticateToken, async (req, res, next) => {
+  const SQL = `SELECT * FROM comments WHERE user_id = $1;`;
+  const comments = await client.query(SQL, [req.user.id]);
+  res.json(comment.rows);
+});
+
+//edit a comment
+app.put(
+  "/api/users/:userId/comments/:commentId",
+  authenticateToken,
+  async (req, res, next) => {
+    const { userId, commentId } = req.params;
+    const { comment_text } = req.body;
+    if (userId !== req.user.id)
+      return res.status(403).send("not authroized to edit");
+    const SQL = `UPDATE comments SET comment_text = $1 WHERE id = $2 RETURNING*;`;
+    const updatedComment = await client.query(SQL, [comment_text, commentId]);
+    if (updatedComment.rows.length === 0)
+      return res.status(404).send("comment not found");
+    res.json(updatedComment.rows[0]);
+  }
+);
+
+//delete a comment
+app.delete(
+  "/api/users/:userId/comments/:commentId",
+  authenticateToken,
+  async (req, res, next) => {
+    const { userId, commentId } = req.params;
+    if (userId !== req.user.id)
+      return res.status(403).send("not authorized to delete");
+    const SQL = `DELETE FROM comments WHERE id = $1 RETURNING *;`;
+    const deletedComment = await client.query(SQL, [commentId]);
+    if (deletedComment.rows.length === 0)
+      return res.status(404).send("comment not found");
+    res.status(204).send();
+  }
+);
 
 const init = async () => {
   console.log("connecting to database");
